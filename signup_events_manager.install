@@ -1,0 +1,131 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Install, update and uninstall functions for the events_manager module
+ *
+ * Download the schema module to auto-generate a schema array for a table:
+ * http://drupal.org/project/schema.
+ *
+ * In this file, we're adding hook_install(), hook_uninstall() and hook_schema(). Notice
+ * the variable_del()'s in hook_uninstall.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function signup_events_manager_install() {
+  // Create tables.
+  drupal_install_schema('signup_events_manager');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function events_manager_uninstall() {
+  drupal_uninstall_schema('signup_events_manager');
+}
+
+/**
+ * Implements hook_schema().
+ */
+function signup_events_manager_schema() {
+  $schema['signup_events_log'] = array(
+  'description' => t('Stores the custom form pane signup information.'),
+  'fields' => array(
+  'id' => array(
+  'description' => t('The unique ID for each record.'),
+  'type' => 'serial',
+  'unsigned' => TRUE,
+  'not null' => TRUE,
+  ),
+  'uid' => array(
+  'description' => t('The {users}.uid if available.'),
+  'type' => 'int',
+  'unsigned' => TRUE,
+  'not null' => TRUE,
+  'default' => 0,
+  ),
+  'sid' => array(
+  'description' => t('The {signup_log}.sid. Foreign key on signup_log.'),
+  'type' => 'int',
+  'unsigned' => TRUE,
+  'not null' => TRUE,
+  'default' => 0,
+  ),
+  'nid' => array(
+  'description' => t('The {node}.id of the event.'),
+  'type' => 'int',
+  'unsigned' => TRUE,
+  'not null' => TRUE,
+  'default' => 0,
+  ),
+  'First' => array(
+  'description' => t('First name'),
+  'type' => 'varchar',
+  'length' => '255',
+  'not null' => FALSE,
+  ),
+  'Last' => array(
+  'description' => t('Last name'),
+  'type' => 'varchar',
+  'length' => '255',
+  'not null' => FALSE,
+  ),
+  'Unit' => array(
+  'description' => t('Unit name'),
+  'type' => 'varchar',
+  'length' => '255',
+  'not null' => FALSE,
+  ),
+  'Phone' => array(
+  'description' => t('Phone number'),
+  'type' => 'varchar',
+  'length' => '255',
+  'not null' => FALSE,
+  ),
+  'anon_mail' => array(
+  'description' => t('The email address of the registrant'),
+  'type' => 'varchar',
+  'length' => '255',
+  'not null' => TRUE,
+  'default' => '',
+  ),
+  'signup_time' => array(
+  'description' => t('The signup time.'),
+  'type' => 'int',
+  'unsigned' => TRUE,
+  'not null' => TRUE,
+  'default' => 0,
+  ),
+  'attended' => array(
+  'description' => t('Attendance status.'),
+  'type' => 'int',
+  'size' => 'tiny',
+  'not null' => FALSE,
+  ),
+  'count_towards_limit' => array(
+  'description' => t('Increment of enrollment seats against enrollment limit.'),
+  'type' => 'int',
+  'not null' => TRUE,
+  'default' => 1,
+  ),
+  'status' => array(
+  'description' => t('Not sure what status we mean.'),
+  'type' => 'int',
+  'not null' => TRUE,
+  'default' => 0,
+  ),
+  ),
+  'primary key' => array('id'),
+  'indexes' => array(
+  'nid' => array('nid'),
+  'nid_2' => array('nid'),
+  'uid' => array('uid'),
+  'uid_2' => array('uid'),
+  ),
+  );
+
+  return $schema;
+}

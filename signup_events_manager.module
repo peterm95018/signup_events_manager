@@ -1,0 +1,304 @@
+<?php
+/**
+ * @file signup_events_manager.module
+ * A very simple example signup pane module.
+ */
+
+/**
+ * Implementation of hook_signup_pane_info().
+ *
+ * Defines panes available to signup forms.
+ * 
+ * @param $node
+ *  (optional) The node being considered for panes.
+ *  Most modules won't need to look at this, but you may need to only return
+ *  panes if the node satisfies certain properties.
+ *
+ * @return
+ *  An associative array of data about signup form panes. 
+ *  The key is the pane ID. The value is itself an associative array of the
+ *  following form:
+ *    - label: A label for the admin UI.
+ *    - description: A longer description for the admin UI.
+ *    - callback: A callback function to generate the form.
+ *  The callback function should have the following signature:
+ *   function my_callback(&$signup_form, &$form_state, $node, $signup, $pane_id, $signup_type = 'auth')
+ *  where the parameters are:
+ *  - $signup_form: Incoming form array, for information only.
+ *  - $form_state: Incoming array from the form builder function.
+ *  - $node: The fully loaded node object.
+ *  - $signup: The fully loaded signup object; or NULL if this is a new signup.
+ *  - $pane_id: The id of the pane currently being invoked. This allows a module
+ *    to use one callback for several panes.
+ *  - $signup_type: The type of signup, which may influence what form is returned:
+ *    - 'auth' -- regular authenticated user signup form
+ *    - 'anon' -- anonymous user signup form (main form includes required email field).
+ *    - 'admin' -- admin form to signup another user (main form includes user selector).
+ */
+function signup_events_manager_signup_pane_info($node = NULL) {
+  return array(
+    'signup_events_manager' => array(
+      'label' => t('Events Manager Basic Fields'),
+      'description' => t('Includes First, Last, Unit, Phone.'),
+      'callback' => 'signup_events_manager_form',
+    ),
+  );
+}
+
+/**
+ * Signup form pane callback.
+ *
+ * If you are handling your own data storage for this form, you should load any
+ * existing data here and load it into the '#default_value' attribute for each
+ * element of the returned array.
+ *
+ * @param &$signup_form
+ *   The form array for the whole signup. You should not alter this, but it
+ *   contains useful data depending on circumstances.
+ * @param &$form_state
+ *   Likewise.
+ * @param $node
+ *   The fully loaded node object.
+ * @param $signup
+ *   If this is an existing signup, the fully loaded node object. If this is a 
+ *   new signup, this is just NULL.
+ * @param $pane_id
+ *   The pane ID being invoked. This allows a module to implement multiple panes
+ *   with one callback.
+ * @param $signup_type
+ *   Determines what kind of signup to generate a form for. Possible values:
+ *    'auth' -- regular authenticated user signup form
+ *    'anon' -- anonymous user signup form (includes required email field).
+ *    'admin' -- admin form to signup another user (includes user selector).
+ * @return
+ *   A form API array for insertion into the signup form.
+ */
+function signup_events_manager_form(&$signup_form, &$form_state, $node, $signup, $pane_id, $signup_type = 'auth') {
+
+  $form['First'] = array(
+    '#type' => 'textfield',
+    '#title' => t('First'),
+    '#size' => 40, '#maxlength' => 64,
+    '#required' => TRUE,
+  );
+  $form['Last'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Last'),
+    '#size' => 40, '#maxlength' => 64,
+    '#required' => TRUE,
+  );
+  $form['Unit'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Unit'),
+    '#size' => 40, '#maxlength' => 64,
+    '#required' => TRUE,
+  );
+  $form['Phone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#size' => 40, '#maxlength' => 64,
+    '#required' => TRUE,
+  );
+
+  return $form;
+
+}
+
+/**
+ * Form validation function for our signup pane.
+ *
+ * This function should be of the form PANECALLBACK_validate.
+ */
+function signup_events_manager_form_validate($element, &$form_state) {
+  
+  // Example validation code:
+//  if ($form_state['values']['signup_form_data']['example']['favorite_color'] != 'blue') {
+//    form_set_error('signup_form_data][example][favorite_color', t('Favourite colour must be blue.'));
+//  }
+
+  if ($form_state['values']['signup_form_data']['signup_events_manager']['First'] == '') {
+    form_set_error('signup_form_data][signup_events_manager][First', t('Please provide a First name.'));
+  }
+  if ($form_state['values']['signup_form_data']['signup_events_manager']['Last'] == '') {
+    form_set_error('signup_form_data][signup_events_manager][Last', t('Please provide a Last name.'));
+  }
+  if ($form_state['values']['signup_form_data']['signup_events_manager']['Unit'] == '') {
+    form_set_error('signup_form_data][signup_events_manager][Unit', t('Please provide a Unit name.'));
+  }
+  if ($form_state['values']['signup_form_data']['signup_events_manager']['Phone'] == '') {
+    form_set_error('signup_form_data][signup_events_manager][Phone', t('Please provide a Phone number.'));
+  }
+
+}
+
+/**
+ * Implementation of hook_signup_data_alter().
+ *
+ * If we want to handle our own data storage rather than let signup module do it,
+ * we can intercept a signup here before it is saved, extract our data (and
+ * unset it in the incoming array), and save it to our own database tables.
+ *
+ * The advantage of doing this is that we can use it in Views as a field in its
+ * own right, which allows sorting and filtering.
+ *
+ * Be aware that at this point the signup may not be assigned an sid if it is
+ * a new submission. You may use signup_events_manager_signup_insert() to save
+ * data after the signup has been stored in the database.
+ *
+ * PSM - Notes
+ * $our_data is an array of our form_data keyed to signup_events_manager
+ * $our_id is the key em_basic_fields for the data that is serialized and instered into signup_log. 
+ * We don't take advantage of it, so it is commented out.
+ * We also don't unset the key, unset($signup->form_data['signup_events_manager']) because we 
+ * _want_ it to be saved in two places. See the example code for the complete example which is deleted here.
+ */
+function signup_events_manager_signup_data_alter(&$signup, $form_values) {
+  global $user; // globalize the user var
+  // take our values from the form being edited and create local copies
+  $our_sid = $signup->sid;
+  $our_nid = $singup->nid;
+  $our_data = $signup->form_data['signup_events_manager'];
+  $anon_mail = $signup->anon_mail;
+  $status = $signup->status;
+  $count_towards_limit = $signup->count_towards_limit;
+  $first = $our_data['First'];
+  $last = $our_data['Last'];
+  $unit = $our_data['Unit'];
+  $phone = $our_data['Phone'];
+
+//print dsm($signup);
+
+ // prepare the $signup object with the updated data for insert into the signup_log table via the parent module
+  $signup->form_data['signup_events_manager']['First'] = $first;
+  $signup->form_data['signup_events_manager']['Last'] = $last;
+  $signup->form_data['signup_events_manager']['Unit'] = $unit;
+  $signup->form_data['signup_events_manager']['Phone'] = $phone;
+  $signup->form_data['signup_events_manager']['anon_mail'] = $anon_mail;
+  $signup->form_data['signup_events_manager']['status'] = $status;
+  $signup->form_data['signup_events_manager']['count_towards_limit'] = $count_towards_limit;
+
+  // update our signup_events_log table with the changed values in the form
+  db_query("UPDATE {signup_events_log} SET First='%s', Last='%s', Unit='%s', Phone='%s', anon_mail='%s', status='%d', count_towards_limit='%d' WHERE sid='%d'", $first, $last, $unit, $phone, $anon_mail, $status, $count_towards_limit, $our_sid);
+
+  // TODO - determine a better id name for Events Manager
+  $our_id = 'em_basic_fields';
+  $signup->form_data[$pane_id] = array(
+    'signup_events_manager_pane_id' => $our_id,
+  );
+  
+}
+
+/**
+ * Implementation of hook_signup_insert().
+ *
+ * Carries on from signup_events_manager_signup_data_alter(). The signup is now
+ * saved to the database and is assigned an sid.
+ * 
+ * PSM - Notes
+ * Here we first hand the $signup object our sanitized data with the values entered in the signup form.
+ * Then we let the data be written to the singup_log table.
+ * Our last step is to insert the data into our table signup_events_log so that we can use it in a view.
+ */
+function signup_events_manager_signup_insert($signup) {
+  global $user;
+  print dsm($signup);
+
+  // Sanitize the incoming form data and set up the $signup object
+  $our_sid = $signup->sid;
+  $our_nid = $signup->nid;
+  $our_uid = $user->uid;
+  $anon_mail = check_plain($signup->anon_mail);
+  $signup_time = check_plain($signup->signup_time);
+  $status = check_plain($signup->status);
+  $count_towards_limit = check_plain($signup->count_towards_limit);
+  $first = check_plain($signup->form_data['signup_events_manager']['First']);
+  $last = check_plain($signup->form_data['signup_events_manager']['Last']);
+  $unit = check_plain($signup->form_data['signup_events_manager']['Unit']);
+  $phone = check_plain($signup->form_data['signup_events_manager']['Phone']);
+
+  // Insert the $singup object into the signup_log table
+  $signup->form_data['signup_events_manager'];
+
+  // Save the data to our signup_events_log table.
+  // Save a connection between $signup->sid and $our_id four our join needs.
+  db_query("INSERT INTO {signup_events_log} SET uid ='%d', sid='%d', nid='%d', First='%s', Last='%s', Unit='%s', Phone='%s', anon_mail='%s', signup_time='%d', status='%d', count_towards_limit='%d'", $our_uid, $our_sid, $our_nid, $first, $last, $unit, $phone, $anon_mail, $signup_time, $status, $count_towards_limit);
+
+}
+
+/**
+ * Implementation of hook_signup_form_data_display_alter().
+ *
+ * Alter signup form data prior to displaying signup records in, for example,
+ * a node's list of signups.
+ *
+ * Alternatively, if we are storing data ourselves, we may wish to load it 
+ * and insert it into the form_data array.
+ *
+ * @param $form_data
+ *  The user's signup data to alter.
+ * @param $nid
+ *  The node id for the signup-enabled node.
+ * @param $sid
+ *  The signup record id. WARNING: NOT the submission sid!
+ * @param $uid
+ *  The user id whose signup this is; 0 if this is an anonymous signup.
+ * @param $type
+ *  The type of output being prepared. Possible values are:
+ *    - 'list': The hardcoded admin lists of signups, eg at node/X/signups/admin
+ *    - 'view': The form data field in Views.
+ *    - 'mail': Email output. This is probably the only one that needs special 
+ *      handling; in this case, modules should be more generous about supplying
+ *      data since there's no other place to see it.
+ * 
+ * PSM Notes - 
+ * Becuase we capitalized our form fields names (First, Last, Phone, Unit), we don't need to 
+ * use this hook. However, if we had used lower case form field names, this is where we'd make
+ * the fix prior to displaying a singup list for the node.
+ */
+function signup_events_manager_signup_form_data_display_alter(&$form_data, $nid, $sid, $uid, $type = 'list') {
+/*
+  if (isset($form_data['signup_events_manager'])) {
+    // Change our data array key from the form element key to something nicely readable.
+    $form_data['signup_events_manager']['First'] = $form_data['signup_events_manager']['first'];
+    unset($form_data['signup_events_manager']['first']);
+  }
+*/
+}
+
+/**
+ * Implementation of hook_signup_cancel().
+ *
+ * A signup is being cancelled. 
+ * If we are storing our own data for this signup, we should delete it here.
+ */
+function signup_events_manager_signup_cancel($signup, $node) { 
+  // Delete the record from the {signup_log} table.
+  db_query('DELETE FROM {signup_events_log} WHERE sid = %d', $signup->sid); 
+  if ($notify_user) {
+  drupal_set_message(t('Signup to !title cancelled.', array('!title' => l($node->title, "node/$node->nid"))));
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * A whole signup-enabled node is being deleted.
+ * If we are storing our own data, we should delete all of it that relates to 
+ * this node.
+ */
+function signup_events_manager_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($op == 'delete') {
+  db_query("DELETE FROM {signup_events_log} WHERE nid = %d", $node->nid);
+  }
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function signup_events_manager_views_api() {
+  return array(
+    'api' => 2,
+    'path' => 
+   drupal_get_path('module', 'signup_events_manager'),
+  );
+}
